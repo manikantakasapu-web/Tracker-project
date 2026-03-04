@@ -26,7 +26,7 @@ export default function Header() {
       >
         {/* LOGO */}
         <img
-          src="https://tse3.mm.bing.net/th/id/OIP.kvD_S2e0_dTOCNTMlUMOvAHaHa?pid=Api&P=0&h=180"
+          src="/logo.png"
           alt="Logo"
           style={{
             width: "60px",
@@ -45,7 +45,10 @@ export default function Header() {
       </Link>
 
       <nav style={{ display: "flex", gap: "25px", alignItems: "center" }}>
-        <Link to="/" style={{ color: "white", textDecoration: "none", fontWeight: "500" }}>
+        <Link
+          to="/"
+          style={{ color: "white", textDecoration: "none", fontWeight: "500" }}
+        >
           Home
         </Link>
 

@@ -1,8 +1,8 @@
 import { Routes, Route } from "react-router-dom";
-import Header from "./components/Header";
-import Home from "./pages/Home";
-import Dashboard from "./pages/Dashboard";
-import AddTransaction from "./pages/AddTransaction";
+import Header from "./Components/Header";
+import Home from "./Pages/Home";
+import Dashboard from "./Pages/Dashboard";
+import AddTransaction from "./Pages/AddTransaction";
 
 export default function App() {
   return (
@@ -22,4 +22,4 @@ export default function App() {
 
     </div>
   );
-}
+} 
