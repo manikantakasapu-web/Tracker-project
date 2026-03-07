@@ -5,6 +5,8 @@ import Home from "./Pages/Home";
 import Dashboard from "./Pages/Dashboard";
 import AddTransaction from "./Pages/AddTransaction";
 import EditTransaction from "./Pages/EditTransaction";
+import Login from "./Pages/Login";
+import Signup from "./Pages/Signup";
 
 export default function App() {
   return (
@@ -17,13 +19,18 @@ export default function App() {
       <div style={{ flex: 1 }}>
         <Routes>
 
+          {/* Home */}
           <Route path="/" element={<Home />} />
 
+          {/* Auth Pages */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+
+          {/* Dashboard */}
           <Route path="/dashboard" element={<Dashboard />} />
 
+          {/* Transactions */}
           <Route path="/add" element={<AddTransaction />} />
-
-          {/* Edit Transaction Route */}
           <Route path="/edit/:id" element={<EditTransaction />} />
 
         </Routes>

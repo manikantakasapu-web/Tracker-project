@@ -26,6 +26,9 @@ ChartJS.register(
 export default function Dashboard() {
   const navigate = useNavigate();
   const [transactions, setTransactions] = useState([]);
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("All");
+  const [typeFilter, setTypeFilter] = useState("All");
 
   useEffect(() => {
     const data = JSON.parse(localStorage.getItem("transactions") || "[]");
@@ -38,21 +41,40 @@ export default function Dashboard() {
     localStorage.setItem("transactions", JSON.stringify(updated));
   };
 
-  const income = useMemo(() => {
-    return transactions
-      .filter((t) => t.type === "income")
-      .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+  const uniqueCategories = useMemo(() => {
+    const cats = transactions.map((t) => t.category).filter(Boolean);
+    return ["All", ...new Set(cats)];
   }, [transactions]);
 
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter((t) => {
+      const matchesSearch =
+        String(t.title || "").toLowerCase().includes(search.toLowerCase());
+
+      const matchesCategory =
+        categoryFilter === "All" || t.category === categoryFilter;
+
+      const matchesType =
+        typeFilter === "All" || t.type === typeFilter;
+
+      return matchesSearch && matchesCategory && matchesType;
+    });
+  }, [transactions, search, categoryFilter, typeFilter]);
+
+  const income = useMemo(() => {
+    return filteredTransactions
+      .filter((t) => t.type === "income")
+      .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+  }, [filteredTransactions]);
+
   const expense = useMemo(() => {
-    return transactions
+    return filteredTransactions
       .filter((t) => t.type === "expense")
       .reduce((sum, t) => sum + Number(t.amount || 0), 0);
-  }, [transactions]);
+  }, [filteredTransactions]);
 
   const balance = income - expense;
 
-  // ✅ PIE DATA
   const pieData = useMemo(() => {
     return {
       labels: ["Income", "Expense"],
@@ -66,22 +88,19 @@ export default function Dashboard() {
     };
   }, [income, expense]);
 
-  // ✅ MONTHLY BAR DATA (based on t.date if exists else current month)
   const barData = useMemo(() => {
     const months = [
-      "Jan","Feb","Mar","Apr","May","Jun",
-      "Jul","Aug","Sep","Oct","Nov","Dec"
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
     ];
 
     const expenseByMonth = new Array(12).fill(0);
 
-    transactions.forEach((t) => {
+    filteredTransactions.forEach((t) => {
       if (t.type !== "expense") return;
 
-      // default current month if date missing
       let m = new Date().getMonth();
 
-      // if date exists (YYYY-MM-DD) use that month
       if (t.date) {
         const d = new Date(t.date);
         if (!isNaN(d.getTime())) m = d.getMonth();
@@ -100,7 +119,7 @@ export default function Dashboard() {
         },
       ],
     };
-  }, [transactions]);
+  }, [filteredTransactions]);
 
   const barOptions = {
     responsive: true,
@@ -110,18 +129,18 @@ export default function Dashboard() {
     },
   };
 
-  // ✅ EXPORT CSV
   const exportCSV = () => {
-    if (transactions.length === 0) {
+    if (filteredTransactions.length === 0) {
       alert("No transactions to export");
       return;
     }
 
-    const headers = ["Title", "Amount", "Type", "Date"];
-    const rows = transactions.map((t) => [
+    const headers = ["Title", "Amount", "Type", "Category", "Date"];
+    const rows = filteredTransactions.map((t) => [
       t.title || "",
       t.amount ?? "",
       t.type || "",
+      t.category || "",
       t.date || "",
     ]);
 
@@ -183,6 +202,60 @@ export default function Dashboard() {
             Export CSV
           </button>
         </div>
+      </div>
+
+      {/* FILTERS */}
+      <div
+        style={{
+          display: "flex",
+          gap: "12px",
+          marginTop: "20px",
+          flexWrap: "wrap",
+          alignItems: "center",
+        }}
+      >
+        <input
+          type="text"
+          placeholder="Search title..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{
+            padding: "10px",
+            border: "1px solid #ccc",
+            borderRadius: "8px",
+            minWidth: "220px",
+          }}
+        />
+
+        <select
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          style={{
+            padding: "10px",
+            border: "1px solid #ccc",
+            borderRadius: "8px",
+          }}
+        >
+          {uniqueCategories.map((cat, index) => (
+            <option key={index} value={cat}>
+              {cat}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+          style={{
+            padding: "10px",
+            border: "1px solid #ccc",
+            borderRadius: "8px",
+          }}
+        >
+          <option value="All">All Types</option>
+          <option value="income">Income</option>
+          <option value="expense">Expense</option>
+        </select>
       </div>
 
       {/* SUMMARY */}
@@ -274,11 +347,11 @@ export default function Dashboard() {
       {/* TRANSACTIONS */}
       <h2 style={{ marginTop: "30px" }}>Transactions</h2>
 
-      {transactions.length === 0 ? (
-        <p>No transactions added.</p>
+      {filteredTransactions.length === 0 ? (
+        <p>No matching transactions found.</p>
       ) : (
         <ul style={{ padding: 0 }}>
-          {transactions.map((t) => (
+          {filteredTransactions.map((t) => (
             <li
               key={t.id}
               style={{
@@ -295,7 +368,7 @@ export default function Dashboard() {
               <div>
                 <strong>{t.title}</strong> <br />
                 <small>
-                  {t.type}
+                  {t.type} • {t.category || "No Category"}
                   {t.date ? ` • ${t.date}` : ""}
                 </small>
               </div>

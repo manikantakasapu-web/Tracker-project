@@ -1,6 +1,17 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function Header() {
+
+  const navigate = useNavigate();
+
+  const isLoggedIn = localStorage.getItem("loggedIn");
+
+  const handleLogout = () => {
+    localStorage.removeItem("loggedIn");
+    alert("Logged out successfully");
+    navigate("/login");
+  };
+
   return (
     <header
       style={{
@@ -14,6 +25,7 @@ export default function Header() {
         boxShadow: "0 3px 12px rgba(0,0,0,0.3)",
       }}
     >
+      {/* LOGO + TITLE */}
       <Link
         to="/"
         style={{
@@ -24,7 +36,6 @@ export default function Header() {
           color: "white",
         }}
       >
-        {/* LOGO */}
         <img
           src="/logo.png"
           alt="Logo"
@@ -35,7 +46,6 @@ export default function Header() {
             borderRadius: "10px",
             background: "white",
             padding: "4px",
-            display: "block",
           }}
         />
 
@@ -44,7 +54,9 @@ export default function Header() {
         </h2>
       </Link>
 
+      {/* NAVIGATION */}
       <nav style={{ display: "flex", gap: "25px", alignItems: "center" }}>
+
         <Link
           to="/"
           style={{ color: "white", textDecoration: "none", fontWeight: "500" }}
@@ -72,6 +84,44 @@ export default function Header() {
         >
           + Add
         </Link>
+
+        {/* LOGIN / SIGNUP if not logged in */}
+        {!isLoggedIn && (
+          <>
+            <Link
+              to="/login"
+              style={{ color: "white", textDecoration: "none", fontWeight: "500" }}
+            >
+              Login
+            </Link>
+
+            <Link
+              to="/signup"
+              style={{ color: "white", textDecoration: "none", fontWeight: "500" }}
+            >
+              Signup
+            </Link>
+          </>
+        )}
+
+        {/* LOGOUT if logged in */}
+        {isLoggedIn && (
+          <button
+            onClick={handleLogout}
+            style={{
+              padding: "8px 14px",
+              background: "#dc2626",
+              color: "white",
+              border: "none",
+              borderRadius: "8px",
+              cursor: "pointer",
+              fontWeight: "600",
+            }}
+          >
+            Logout
+          </button>
+        )}
+
       </nav>
     </header>
   );
