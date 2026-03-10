@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 import { Pie, Bar } from "react-chartjs-2";
 import {
@@ -30,15 +31,30 @@ export default function Dashboard() {
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [typeFilter, setTypeFilter] = useState("All");
 
+  const fetchTransactions = () => {
+    axios
+      .get("http://127.0.0.1:8000/api/transactions/")
+      .then((res) => {
+        setTransactions(Array.isArray(res.data) ? res.data : []);
+      })
+      .catch((err) => {
+        console.log("Error fetching transactions:", err);
+      });
+  };
+
   useEffect(() => {
-    const data = JSON.parse(localStorage.getItem("transactions") || "[]");
-    setTransactions(Array.isArray(data) ? data : []);
+    fetchTransactions();
   }, []);
 
   const handleDelete = (id) => {
-    const updated = transactions.filter((t) => t.id !== id);
-    setTransactions(updated);
-    localStorage.setItem("transactions", JSON.stringify(updated));
+    axios
+      .delete(`http://127.0.0.1:8000/api/transactions/${id}/`)
+      .then(() => {
+        fetchTransactions();
+      })
+      .catch((err) => {
+        console.log("Error deleting transaction:", err);
+      });
   };
 
   const uniqueCategories = useMemo(() => {
@@ -158,7 +174,6 @@ export default function Dashboard() {
 
   return (
     <div style={{ padding: "20px" }}>
-      {/* HEADER */}
       <div
         style={{
           display: "flex",
@@ -204,7 +219,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* FILTERS */}
       <div
         style={{
           display: "flex",
@@ -258,7 +272,6 @@ export default function Dashboard() {
         </select>
       </div>
 
-      {/* SUMMARY */}
       <div
         style={{
           display: "flex",
@@ -307,7 +320,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* CHARTS */}
       <div
         style={{
           marginTop: "30px",
@@ -344,7 +356,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* TRANSACTIONS */}
       <h2 style={{ marginTop: "30px" }}>Transactions</h2>
 
       {filteredTransactions.length === 0 ? (

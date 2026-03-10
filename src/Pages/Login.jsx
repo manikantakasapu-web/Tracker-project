@@ -1,34 +1,35 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 export default function Login() {
 
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
   const handleLogin = (e) => {
     e.preventDefault();
 
-    const savedUser = JSON.parse(localStorage.getItem("user"));
-
-    if (!savedUser) {
-      alert("User not found. Please signup.");
-      return;
-    }
-
-    if (email === savedUser.email && password === savedUser.password) {
-
-      localStorage.setItem("loggedIn", true);
+    axios.post("http://127.0.0.1:8000/api/login/", {
+      username: username,
+      password: password
+    })
+    .then((res) => {
 
       alert("Login successful");
 
+      localStorage.setItem("loggedIn", true);
+
       navigate("/dashboard");
 
-    } else {
-      alert("Invalid credentials");
-    }
+    })
+    .catch((err) => {
+
+      alert("Invalid username or password");
+
+    });
   };
 
   return (
@@ -38,10 +39,10 @@ export default function Login() {
       <form onSubmit={handleLogin} style={{ maxWidth: "400px" }}>
 
         <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          type="text"
+          placeholder="Username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
           style={{ width: "100%", padding: "10px", marginBottom: "10px" }}
         />
 

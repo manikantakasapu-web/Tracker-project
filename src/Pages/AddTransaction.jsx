@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 export default function AddTransaction() {
   const navigate = useNavigate();
@@ -9,7 +10,6 @@ export default function AddTransaction() {
   const [type, setType] = useState("expense");
   const [category, setCategory] = useState("Food");
   const [date, setDate] = useState(() => {
-    // yyyy-mm-dd (for input type="date")
     return new Date().toISOString().slice(0, 10);
   });
 
@@ -21,19 +21,22 @@ export default function AddTransaction() {
       return;
     }
 
-    const newTx = {
-      id: Date.now(),
-      title: title.trim(),
-      amount: Number(amount),
-      type,
-      category,
-      date, // yyyy-mm-dd
-    };
-
-    const old = JSON.parse(localStorage.getItem("transactions") || "[]");
-    localStorage.setItem("transactions", JSON.stringify([newTx, ...old]));
-
-    navigate("/dashboard");
+    axios
+      .post("http://127.0.0.1:8000/api/transactions/", {
+        title: title.trim(),
+        amount: Number(amount),
+        type,
+        category,
+        date,
+      })
+      .then(() => {
+        alert("Transaction added successfully");
+        navigate("/dashboard");
+      })
+      .catch((err) => {
+        console.log("Error adding transaction:", err);
+        alert("Failed to add transaction");
+      });
   };
 
   return (
