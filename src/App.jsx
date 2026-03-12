@@ -1,5 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import Header from "./Components/Header";
+import ProtectedRoute from "./Components/ProtectedRoute";
 
 import Home from "./Pages/Home";
 import Dashboard from "./Pages/Dashboard";
@@ -11,14 +12,12 @@ import Signup from "./Pages/Signup";
 export default function App() {
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-
       {/* Header */}
       <Header />
 
       {/* Main Content */}
       <div style={{ flex: 1 }}>
         <Routes>
-
           {/* Home */}
           <Route path="/" element={<Home />} />
 
@@ -26,16 +25,35 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
 
-          {/* Dashboard */}
-          <Route path="/dashboard" element={<Dashboard />} />
+          {/* Protected Pages */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
 
-          {/* Transactions */}
-          <Route path="/add" element={<AddTransaction />} />
-          <Route path="/edit/:id" element={<EditTransaction />} />
+          <Route
+            path="/add"
+            element={
+              <ProtectedRoute>
+                <AddTransaction />
+              </ProtectedRoute>
+            }
+          />
 
+          <Route
+            path="/edit/:id"
+            element={
+              <ProtectedRoute>
+                <EditTransaction />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </div>
-
     </div>
   );
 }

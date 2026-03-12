@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 
+const categoryOptions = ["Food", "Travel", "Rent", "Shopping", "Salary", "Other"];
+
 export default function EditTransaction() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -10,18 +12,30 @@ export default function EditTransaction() {
   const [amount, setAmount] = useState("");
   const [type, setType] = useState("expense");
   const [category, setCategory] = useState("Food");
+  const [customCategory, setCustomCategory] = useState("");
   const [date, setDate] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     axios
       .get(`http://127.0.0.1:8000/api/transactions/${id}/`)
       .then((res) => {
         const tx = res.data;
+
         setTitle(tx.title || "");
         setAmount(String(tx.amount ?? ""));
         setType(tx.type || "expense");
-        setCategory(tx.category || "Food");
         setDate(tx.date || "");
+
+        if (categoryOptions.includes(tx.category)) {
+          setCategory(tx.category || "Food");
+          setCustomCategory("");
+        } else {
+          setCategory("Other");
+          setCustomCategory(tx.category || "");
+        }
+
+        setLoading(false);
       })
       .catch((err) => {
         console.log("Error fetching transaction:", err);
@@ -33,7 +47,9 @@ export default function EditTransaction() {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!title.trim() || !amount || !date) {
+    const finalCategory = category === "Other" ? customCategory.trim() : category;
+
+    if (!title.trim() || !amount || !date || !finalCategory) {
       alert("Please fill all fields");
       return;
     }
@@ -43,7 +59,7 @@ export default function EditTransaction() {
         title: title.trim(),
         amount: Number(amount),
         type,
-        category,
+        category: finalCategory,
         date,
       })
       .then(() => {
@@ -56,112 +72,262 @@ export default function EditTransaction() {
       });
   };
 
+  if (loading) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#f8fafc",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: "20px",
+          fontWeight: "600",
+          color: "#475569",
+        }}
+      >
+        Loading transaction...
+      </div>
+    );
+  }
+
   return (
-    <div style={{ padding: "20px" }}>
-      <h1 style={{ fontSize: "30px", fontWeight: "bold" }}>
-        Edit Transaction
-      </h1>
-
-      <form onSubmit={handleSubmit} style={{ marginTop: "20px", maxWidth: "420px" }}>
-        <div style={{ marginBottom: "12px" }}>
-          <label>Title</label>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="eg: Food, Salary"
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, #eef2ff, #f8fafc)",
+        padding: "40px 20px",
+      }}
+    >
+      <div
+        style={{
+          maxWidth: "620px",
+          margin: "0 auto",
+          background: "white",
+          borderRadius: "22px",
+          boxShadow: "0 12px 35px rgba(15,23,42,0.08)",
+          padding: "32px",
+        }}
+      >
+        <div style={{ marginBottom: "24px" }}>
+          <h1
             style={{
-              width: "100%",
-              padding: "10px",
-              border: "1px solid #ccc",
-              borderRadius: "8px",
-            }}
-          />
-        </div>
-
-        <div style={{ marginBottom: "12px" }}>
-          <label>Amount</label>
-          <input
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            type="number"
-            placeholder="eg: 500"
-            style={{
-              width: "100%",
-              padding: "10px",
-              border: "1px solid #ccc",
-              borderRadius: "8px",
-            }}
-          />
-        </div>
-
-        <div style={{ marginBottom: "12px" }}>
-          <label>Type</label>
-          <select
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "10px",
-              border: "1px solid #ccc",
-              borderRadius: "8px",
+              fontSize: "34px",
+              fontWeight: "800",
+              margin: 0,
+              color: "#0f172a",
             }}
           >
-            <option value="expense">Expense</option>
-            <option value="income">Income</option>
-          </select>
-        </div>
-
-        <div style={{ marginBottom: "12px" }}>
-          <label>Category</label>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
+            Edit Transaction
+          </h1>
+          <p
             style={{
-              width: "100%",
-              padding: "10px",
-              border: "1px solid #ccc",
-              borderRadius: "8px",
+              marginTop: "8px",
+              color: "#64748b",
+              fontSize: "15px",
             }}
           >
-            <option value="Food">Food</option>
-            <option value="Travel">Travel</option>
-            <option value="Rent">Rent</option>
-            <option value="Shopping">Shopping</option>
-            <option value="Salary">Salary</option>
-            <option value="Other">Other</option>
-          </select>
+            Update your transaction details and save the changes.
+          </p>
         </div>
 
-        <div style={{ marginBottom: "12px" }}>
-          <label>Date</label>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: "16px" }}>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "8px",
+                fontWeight: "600",
+                color: "#334155",
+              }}
+            >
+              Title
+            </label>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="eg: Groceries, Salary, Petrol"
+              style={inputStyle}
+            />
+          </div>
+
+          <div style={{ marginBottom: "16px" }}>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "8px",
+                fontWeight: "600",
+                color: "#334155",
+              }}
+            >
+              Amount
+            </label>
+            <input
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              type="number"
+              placeholder="eg: 500"
+              style={inputStyle}
+            />
+          </div>
+
+          <div
             style={{
-              width: "100%",
-              padding: "10px",
-              border: "1px solid #ccc",
-              borderRadius: "8px",
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "16px",
+              marginBottom: "16px",
             }}
-          />
-        </div>
+          >
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  fontWeight: "600",
+                  color: "#334155",
+                }}
+              >
+                Type
+              </label>
+              <select
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+                style={inputStyle}
+              >
+                <option value="expense">Expense</option>
+                <option value="income">Income</option>
+              </select>
+            </div>
 
-        <button
-          type="submit"
-          style={{
-            padding: "10px 14px",
-            background: "#6366f1",
-            color: "white",
-            border: "none",
-            borderRadius: "8px",
-            cursor: "pointer",
-            fontWeight: "700",
-          }}
-        >
-          Update
-        </button>
-      </form>
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  fontWeight: "600",
+                  color: "#334155",
+                }}
+              >
+                Date
+              </label>
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                style={inputStyle}
+              />
+            </div>
+          </div>
+
+          <div style={{ marginBottom: "16px" }}>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "8px",
+                fontWeight: "600",
+                color: "#334155",
+              }}
+            >
+              Category
+            </label>
+            <select
+              value={category}
+              onChange={(e) => {
+                setCategory(e.target.value);
+                if (e.target.value !== "Other") {
+                  setCustomCategory("");
+                }
+              }}
+              style={inputStyle}
+            >
+              <option value="Food">Food</option>
+              <option value="Travel">Travel</option>
+              <option value="Rent">Rent</option>
+              <option value="Shopping">Shopping</option>
+              <option value="Salary">Salary</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          {category === "Other" && (
+            <div style={{ marginBottom: "16px" }}>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  fontWeight: "600",
+                  color: "#334155",
+                }}
+              >
+                Custom Category
+              </label>
+              <input
+                type="text"
+                value={customCategory}
+                onChange={(e) => setCustomCategory(e.target.value)}
+                placeholder="Enter your custom category"
+                style={{
+                  ...inputStyle,
+                  border: "1px solid #6366f1",
+                }}
+              />
+            </div>
+          )}
+
+          <div
+            style={{
+              display: "flex",
+              gap: "12px",
+              marginTop: "24px",
+              flexWrap: "wrap",
+            }}
+          >
+            <button
+              type="submit"
+              style={{
+                padding: "12px 18px",
+                background: "#6366f1",
+                color: "white",
+                border: "none",
+                borderRadius: "10px",
+                cursor: "pointer",
+                fontWeight: "700",
+                boxShadow: "0 8px 20px rgba(99,102,241,0.25)",
+              }}
+            >
+              Update Transaction
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard")}
+              style={{
+                padding: "12px 18px",
+                background: "#e2e8f0",
+                color: "#0f172a",
+                border: "none",
+                borderRadius: "10px",
+                cursor: "pointer",
+                fontWeight: "700",
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
+
+const inputStyle = {
+  width: "100%",
+  padding: "12px 14px",
+  border: "1px solid #cbd5e1",
+  borderRadius: "10px",
+  outline: "none",
+  fontSize: "15px",
+  boxSizing: "border-box",
+  background: "#fff",
+};

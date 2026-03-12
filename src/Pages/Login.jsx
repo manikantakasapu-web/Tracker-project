@@ -12,15 +12,21 @@ export default function Login() {
   const handleLogin = (e) => {
     e.preventDefault();
 
+    if (!username.trim() || !password.trim()) {
+      alert("Please enter username and password");
+      return;
+    }
+
     axios.post("http://127.0.0.1:8000/api/login/", {
-      username: username,
-      password: password
+      username: username.trim(),
+      password: password.trim()
     })
     .then((res) => {
 
       alert("Login successful");
 
-      localStorage.setItem("loggedIn", true);
+      // login status save
+      localStorage.setItem("loggedIn", "true");
 
       navigate("/dashboard");
 
@@ -55,12 +61,14 @@ export default function Login() {
         />
 
         <button
+          type="submit"
           style={{
             padding: "10px 20px",
             background: "#111827",
             color: "white",
             border: "none",
-            borderRadius: "6px"
+            borderRadius: "6px",
+            cursor: "pointer"
           }}
         >
           Login

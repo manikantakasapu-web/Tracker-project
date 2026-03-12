@@ -1,7 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 
 export default function Header() {
-
   const navigate = useNavigate();
 
   const isLoggedIn = localStorage.getItem("loggedIn");
@@ -25,7 +24,6 @@ export default function Header() {
         boxShadow: "0 3px 12px rgba(0,0,0,0.3)",
       }}
     >
-      {/* LOGO + TITLE */}
       <Link
         to="/"
         style={{
@@ -54,9 +52,7 @@ export default function Header() {
         </h2>
       </Link>
 
-      {/* NAVIGATION */}
       <nav style={{ display: "flex", gap: "25px", alignItems: "center" }}>
-
         <Link
           to="/"
           style={{ color: "white", textDecoration: "none", fontWeight: "500" }}
@@ -64,28 +60,15 @@ export default function Header() {
           Home
         </Link>
 
-        <Link
-          to="/dashboard"
-          style={{ color: "white", textDecoration: "none", fontWeight: "500" }}
-        >
-          Dashboard
-        </Link>
+        {isLoggedIn && (
+          <Link
+            to="/dashboard"
+            style={{ color: "white", textDecoration: "none", fontWeight: "500" }}
+          >
+            Dashboard
+          </Link>
+        )}
 
-        <Link
-          to="/add"
-          style={{
-            background: "#6366f1",
-            padding: "8px 16px",
-            borderRadius: "8px",
-            color: "white",
-            textDecoration: "none",
-            fontWeight: "600",
-          }}
-        >
-          + Add
-        </Link>
-
-        {/* LOGIN / SIGNUP if not logged in */}
         {!isLoggedIn && (
           <>
             <Link
@@ -104,7 +87,6 @@ export default function Header() {
           </>
         )}
 
-        {/* LOGOUT if logged in */}
         {isLoggedIn && (
           <button
             onClick={handleLogout}
@@ -121,7 +103,6 @@ export default function Header() {
             Logout
           </button>
         )}
-
       </nav>
     </header>
   );

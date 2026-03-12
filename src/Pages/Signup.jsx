@@ -8,26 +8,35 @@ export default function Signup() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleSignup = (e) => {
+  const handleSignup = async (e) => {
     e.preventDefault();
 
-    if (!username.trim() || !password.trim()) {
+    const cleanUsername = username.trim();
+    const cleanPassword = password.trim();
+
+    if (!cleanUsername || !cleanPassword) {
       alert("Username and password are required");
       return;
     }
 
-    axios
-      .post("http://127.0.0.1:8000/api/signup/", {
-        username: username.trim(),
-        password: password.trim(),
-      })
-      .then((res) => {
-        alert("Signup successful");
-        navigate("/login");
-      })
-      .catch((err) => {
-        alert(err.response?.data?.error || "Signup failed");
+    try {
+      const res = await axios.post("http://127.0.0.1:8000/api/signup/", {
+        username: cleanUsername,
+        password: cleanPassword,
       });
+
+      alert(res.data?.message || "Signup successful");
+      navigate("/login");
+    } catch (err) {
+      console.log("Signup error:", err);
+      console.log("Signup error response:", err.response?.data);
+
+      alert(
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        "Signup failed"
+      );
+    }
   };
 
   return (
@@ -59,6 +68,7 @@ export default function Signup() {
             color: "white",
             border: "none",
             borderRadius: "6px",
+            cursor: "pointer",
           }}
         >
           Signup
