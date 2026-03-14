@@ -10,24 +10,37 @@ export default function AddTransaction() {
   const [type, setType] = useState("expense");
   const [category, setCategory] = useState("Food");
   const [customCategory, setCustomCategory] = useState("");
-  const [date, setDate] = useState(() => {
-    return new Date().toISOString().slice(0, 10);
-  });
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
     const finalCategory = category === "Other" ? customCategory.trim() : category;
+    const finalTitle = title.trim();
+    const finalAmount = Number(amount);
 
-    if (!title.trim() || !amount || !finalCategory || !date) {
+    if (!finalTitle || !amount || !finalCategory || !date) {
       alert("Please fill all fields");
       return;
     }
 
+    if (finalAmount <= 0) {
+      alert("Amount must be greater than 0");
+      return;
+    }
+
+    if (category === "Other" && !customCategory.trim()) {
+      alert("Please enter custom category");
+      return;
+    }
+
+    setSubmitting(true);
+
     axios
       .post("http://127.0.0.1:8000/api/transactions/", {
-        title: title.trim(),
-        amount: Number(amount),
+        title: finalTitle,
+        amount: finalAmount,
         type,
         category: finalCategory,
         date,
@@ -39,6 +52,9 @@ export default function AddTransaction() {
       .catch((err) => {
         console.log("Error adding transaction:", err);
         alert("Failed to add transaction");
+      })
+      .finally(() => {
+        setSubmitting(false);
       });
   };
 
@@ -236,30 +252,32 @@ export default function AddTransaction() {
           >
             <button
               type="submit"
+              disabled={submitting}
               style={{
                 padding: "12px 18px",
-                background: "#6366f1",
+                background: submitting ? "#94a3b8" : "#6366f1",
                 color: "white",
                 border: "none",
                 borderRadius: "10px",
-                cursor: "pointer",
+                cursor: submitting ? "not-allowed" : "pointer",
                 fontWeight: "700",
                 boxShadow: "0 8px 20px rgba(99,102,241,0.25)",
               }}
             >
-              Add Transaction
+              {submitting ? "Adding..." : "Add Transaction"}
             </button>
 
             <button
               type="button"
               onClick={() => navigate("/dashboard")}
+              disabled={submitting}
               style={{
                 padding: "12px 18px",
                 background: "#e2e8f0",
                 color: "#0f172a",
                 border: "none",
                 borderRadius: "10px",
-                cursor: "pointer",
+                cursor: submitting ? "not-allowed" : "pointer",
                 fontWeight: "700",
               }}
             >

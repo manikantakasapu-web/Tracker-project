@@ -12,20 +12,15 @@ import Signup from "./Pages/Signup";
 export default function App() {
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      {/* Header */}
       <Header />
 
-      {/* Main Content */}
       <div style={{ flex: 1 }}>
         <Routes>
-          {/* Home */}
           <Route path="/" element={<Home />} />
 
-          {/* Auth Pages */}
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
 
-          {/* Protected Pages */}
           <Route
             path="/dashboard"
             element={
@@ -36,7 +31,7 @@ export default function App() {
           />
 
           <Route
-            path="/add"
+            path="/add-transaction"
             element={
               <ProtectedRoute>
                 <AddTransaction />

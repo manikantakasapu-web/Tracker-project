@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 import { Pie, Bar } from "react-chartjs-2";
 import {
@@ -30,7 +32,34 @@ export default function Dashboard() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [typeFilter, setTypeFilter] = useState("All");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [loading, setLoading] = useState(true);
+  const [darkMode, setDarkMode] = useState(
+    localStorage.getItem("darkMode") === "true"
+  );
+
+  const toggleDarkMode = () => {
+    const newMode = !darkMode;
+    setDarkMode(newMode);
+    localStorage.setItem("darkMode", newMode);
+  };
+
+  const theme = {
+    pageBg: darkMode ? "#0f172a" : "#f8fafc",
+    cardBg: darkMode ? "#1e293b" : "#ffffff",
+    cardBgSoft: darkMode ? "#111827" : "#f8fafc",
+    text: darkMode ? "#f8fafc" : "#0f172a",
+    subText: darkMode ? "#94a3b8" : "#64748b",
+    border: darkMode ? "#334155" : "#cbd5e1",
+    tableHeadBg: darkMode ? "#111827" : "#f8fafc",
+    rowBorder: darkMode ? "#334155" : "#e2e8f0",
+    inputBg: darkMode ? "#0f172a" : "#ffffff",
+    inputText: darkMode ? "#f8fafc" : "#0f172a",
+    shadow: darkMode
+      ? "0 6px 24px rgba(0,0,0,0.35)"
+      : "0 6px 24px rgba(15,23,42,0.06)",
+  };
 
   const fetchTransactions = () => {
     setLoading(true);
@@ -52,7 +81,9 @@ export default function Dashboard() {
   }, []);
 
   const handleDelete = (id) => {
-    const confirmDelete = window.confirm("Are you sure you want to delete this transaction?");
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this transaction?"
+    );
     if (!confirmDelete) return;
 
     axios
@@ -66,52 +97,87 @@ export default function Dashboard() {
       });
   };
 
+  const resetFilters = () => {
+    setSearch("");
+    setCategoryFilter("All");
+    setTypeFilter("All");
+    setFromDate("");
+    setToDate("");
+  };
+
   const uniqueCategories = useMemo(() => {
-    const cats = transactions.map((t) => t.category).filter(Boolean);
+    const cats = transactions
+      .map((t) => String(t.category || "").trim())
+      .filter(Boolean);
+
     return ["All", ...new Set(cats)];
   }, [transactions]);
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter((t) => {
-      const matchesSearch =
-        String(t.title || "").toLowerCase().includes(search.toLowerCase());
+      const titleValue = String(t.title || "").toLowerCase().trim();
+      const categoryValue = String(t.category || "").trim();
+      const typeValue = String(t.type || "").toLowerCase().trim();
+      const transactionDate = String(t.date || "").trim();
+
+      const searchValue = search.toLowerCase().trim();
+      const selectedCategory = categoryFilter.trim();
+      const selectedType = typeFilter.toLowerCase().trim();
+
+      const matchesSearch = titleValue.includes(searchValue);
 
       const matchesCategory =
-        categoryFilter === "All" || t.category === categoryFilter;
+        selectedCategory === "All" || categoryValue === selectedCategory;
 
       const matchesType =
-        typeFilter === "All" || t.type === typeFilter;
+        selectedType === "all" || typeValue === selectedType;
 
-      return matchesSearch && matchesCategory && matchesType;
+      let matchesDate = true;
+
+      if (fromDate && transactionDate) {
+        matchesDate = matchesDate && transactionDate >= fromDate;
+      }
+
+      if (toDate && transactionDate) {
+        matchesDate = matchesDate && transactionDate <= toDate;
+      }
+
+      if ((fromDate || toDate) && !transactionDate) {
+        matchesDate = false;
+      }
+
+      return matchesSearch && matchesCategory && matchesType && matchesDate;
     });
-  }, [transactions, search, categoryFilter, typeFilter]);
+  }, [transactions, search, categoryFilter, typeFilter, fromDate, toDate]);
 
   const income = useMemo(() => {
     return filteredTransactions
-      .filter((t) => t.type === "income")
+      .filter((t) => String(t.type || "").toLowerCase().trim() === "income")
       .reduce((sum, t) => sum + Number(t.amount || 0), 0);
   }, [filteredTransactions]);
 
   const expense = useMemo(() => {
     return filteredTransactions
-      .filter((t) => t.type === "expense")
+      .filter((t) => String(t.type || "").toLowerCase().trim() === "expense")
       .reduce((sum, t) => sum + Number(t.amount || 0), 0);
   }, [filteredTransactions]);
 
   const balance = income - expense;
-
   const totalTransactions = filteredTransactions.length;
+
+  const EXPENSE_LIMIT = 15000;
+  const showWarning = expense > EXPENSE_LIMIT;
 
   const highestExpense = Math.max(
     ...filteredTransactions
-      .filter((t) => t.type === "expense")
+      .filter((t) => String(t.type || "").toLowerCase().trim() === "expense")
       .map((t) => Number(t.amount || 0)),
     0
   );
 
   const highestIncome = Math.max(
     ...filteredTransactions
-      .filter((t) => t.type === "income")
+      .filter((t) => String(t.type || "").toLowerCase().trim() === "income")
       .map((t) => Number(t.amount || 0)),
     0
   );
@@ -129,16 +195,50 @@ export default function Dashboard() {
     };
   }, [income, expense]);
 
+  const categoryPieData = useMemo(() => {
+    const expenseTransactions = filteredTransactions.filter(
+      (t) => String(t.type || "").toLowerCase().trim() === "expense"
+    );
+
+    const categoryTotals = {};
+
+    expenseTransactions.forEach((t) => {
+      const categoryName = String(t.category || "Other").trim();
+      categoryTotals[categoryName] =
+        (categoryTotals[categoryName] || 0) + Number(t.amount || 0);
+    });
+
+    return {
+      labels: Object.keys(categoryTotals),
+      datasets: [
+        {
+          data: Object.values(categoryTotals),
+          backgroundColor: [
+            "#ef4444",
+            "#f59e0b",
+            "#10b981",
+            "#3b82f6",
+            "#8b5cf6",
+            "#ec4899",
+            "#14b8a6",
+            "#f97316",
+          ],
+          borderWidth: 1,
+        },
+      ],
+    };
+  }, [filteredTransactions]);
+
   const barData = useMemo(() => {
     const months = [
       "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
     ];
 
     const expenseByMonth = new Array(12).fill(0);
 
     filteredTransactions.forEach((t) => {
-      if (t.type !== "expense") return;
+      if (String(t.type || "").toLowerCase().trim() !== "expense") return;
 
       let m = new Date().getMonth();
 
@@ -166,8 +266,35 @@ export default function Dashboard() {
   const barOptions = {
     responsive: true,
     plugins: {
-      legend: { display: true },
-      title: { display: true, text: "Monthly Expenses Overview" },
+      legend: {
+        display: true,
+        labels: {
+          color: darkMode ? "#f8fafc" : "#0f172a",
+        },
+      },
+      title: {
+        display: true,
+        text: "Monthly Expenses Overview",
+        color: darkMode ? "#f8fafc" : "#0f172a",
+      },
+    },
+    scales: {
+      x: {
+        ticks: {
+          color: darkMode ? "#cbd5e1" : "#334155",
+        },
+        grid: {
+          color: darkMode ? "#334155" : "#e2e8f0",
+        },
+      },
+      y: {
+        ticks: {
+          color: darkMode ? "#cbd5e1" : "#334155",
+        },
+        grid: {
+          color: darkMode ? "#334155" : "#e2e8f0",
+        },
+      },
     },
   };
 
@@ -198,6 +325,35 @@ export default function Dashboard() {
     document.body.removeChild(link);
   };
 
+  const exportPDF = () => {
+    if (filteredTransactions.length === 0) {
+      alert("No transactions to export");
+      return;
+    }
+
+    const doc = new jsPDF();
+
+    doc.setFontSize(18);
+    doc.text("Expense Tracker Report", 14, 20);
+
+    const tableColumn = ["Title", "Amount", "Type", "Category", "Date"];
+    const tableRows = filteredTransactions.map((t) => [
+      t.title || "",
+      t.amount ?? "",
+      t.type || "",
+      t.category || "",
+      t.date || "",
+    ]);
+
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 30,
+    });
+
+    doc.save("expense-report.pdf");
+  };
+
   if (loading) {
     return (
       <div
@@ -208,8 +364,8 @@ export default function Dashboard() {
           alignItems: "center",
           fontSize: "24px",
           fontWeight: "700",
-          color: "#334155",
-          background: "#f8fafc",
+          color: darkMode ? "#f8fafc" : "#334155",
+          background: theme.pageBg,
         }}
       >
         Loading Dashboard...
@@ -221,8 +377,9 @@ export default function Dashboard() {
     <div
       style={{
         minHeight: "100vh",
-        background: "#f8fafc",
+        background: theme.pageBg,
         padding: "30px 20px",
+        transition: "0.3s ease",
       }}
     >
       <div
@@ -231,6 +388,24 @@ export default function Dashboard() {
           margin: "0 auto",
         }}
       >
+        {showWarning && (
+          <div
+            style={{
+              background: darkMode ? "#3f1d1d" : "#fee2e2",
+              color: darkMode ? "#fecaca" : "#991b1b",
+              padding: "16px",
+              borderRadius: "12px",
+              marginBottom: "20px",
+              fontWeight: "700",
+              border: darkMode ? "1px solid #7f1d1d" : "1px solid #fecaca",
+              textAlign: "center",
+              boxShadow: theme.shadow,
+            }}
+          >
+            ⚠ Warning: Your expenses crossed ₹{EXPENSE_LIMIT}
+          </div>
+        )}
+
         <div
           style={{
             display: "flex",
@@ -246,7 +421,7 @@ export default function Dashboard() {
               style={{
                 margin: 0,
                 fontSize: "40px",
-                color: "#0f172a",
+                color: theme.text,
               }}
             >
               Dashboard
@@ -254,7 +429,7 @@ export default function Dashboard() {
             <p
               style={{
                 marginTop: "6px",
-                color: "#64748b",
+                color: theme.subText,
               }}
             >
               Manage your transactions and track your financial activity.
@@ -263,7 +438,22 @@ export default function Dashboard() {
 
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
             <button
-              onClick={() => navigate("/add")}
+              onClick={toggleDarkMode}
+              style={{
+                padding: "10px 16px",
+                background: darkMode ? "#facc15" : "#111827",
+                color: darkMode ? "#111827" : "white",
+                border: "none",
+                borderRadius: "10px",
+                cursor: "pointer",
+                fontWeight: "700",
+              }}
+            >
+              {darkMode ? "☀ Light Mode" : "🌙 Dark Mode"}
+            </button>
+
+            <button
+              onClick={() => navigate("/add-transaction")}
               style={{
                 padding: "10px 16px",
                 background: "#6366f1",
@@ -292,15 +482,30 @@ export default function Dashboard() {
             >
               Export CSV
             </button>
+
+            <button
+              onClick={exportPDF}
+              style={{
+                padding: "10px 16px",
+                background: "#16a34a",
+                color: "white",
+                border: "none",
+                borderRadius: "10px",
+                cursor: "pointer",
+                fontWeight: "700",
+              }}
+            >
+              Download PDF
+            </button>
           </div>
         </div>
 
         <div
           style={{
-            background: "white",
+            background: theme.cardBg,
             borderRadius: "16px",
             padding: "18px",
-            boxShadow: "0 6px 24px rgba(15,23,42,0.06)",
+            boxShadow: theme.shadow,
             marginBottom: "24px",
           }}
         >
@@ -319,10 +524,12 @@ export default function Dashboard() {
               onChange={(e) => setSearch(e.target.value)}
               style={{
                 padding: "12px",
-                border: "1px solid #cbd5e1",
+                border: `1px solid ${theme.border}`,
                 borderRadius: "10px",
                 minWidth: "240px",
                 outline: "none",
+                background: theme.inputBg,
+                color: theme.inputText,
               }}
             />
 
@@ -331,9 +538,11 @@ export default function Dashboard() {
               onChange={(e) => setCategoryFilter(e.target.value)}
               style={{
                 padding: "12px",
-                border: "1px solid #cbd5e1",
+                border: `1px solid ${theme.border}`,
                 borderRadius: "10px",
                 outline: "none",
+                background: theme.inputBg,
+                color: theme.inputText,
               }}
             >
               {uniqueCategories.map((cat, index) => (
@@ -348,15 +557,60 @@ export default function Dashboard() {
               onChange={(e) => setTypeFilter(e.target.value)}
               style={{
                 padding: "12px",
-                border: "1px solid #cbd5e1",
+                border: `1px solid ${theme.border}`,
                 borderRadius: "10px",
                 outline: "none",
+                background: theme.inputBg,
+                color: theme.inputText,
               }}
             >
               <option value="All">All Types</option>
               <option value="income">Income</option>
               <option value="expense">Expense</option>
             </select>
+
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              style={{
+                padding: "12px",
+                border: `1px solid ${theme.border}`,
+                borderRadius: "10px",
+                outline: "none",
+                background: theme.inputBg,
+                color: theme.inputText,
+              }}
+            />
+
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              style={{
+                padding: "12px",
+                border: `1px solid ${theme.border}`,
+                borderRadius: "10px",
+                outline: "none",
+                background: theme.inputBg,
+                color: theme.inputText,
+              }}
+            />
+
+            <button
+              onClick={resetFilters}
+              style={{
+                padding: "12px 16px",
+                background: "#ef4444",
+                color: "white",
+                border: "none",
+                borderRadius: "10px",
+                cursor: "pointer",
+                fontWeight: "600",
+              }}
+            >
+              Reset Filters
+            </button>
           </div>
         </div>
 
@@ -425,61 +679,82 @@ export default function Dashboard() {
             marginBottom: "28px",
           }}
         >
-          <div style={extraStatCard}>
-            <p style={extraStatTitle}>Total Transactions</p>
-            <h3 style={extraStatValue}>{totalTransactions}</h3>
+          <div style={getExtraStatCard(theme)}>
+            <p style={getExtraStatTitle(theme)}>Total Transactions</p>
+            <h3 style={getExtraStatValue(theme)}>{totalTransactions}</h3>
           </div>
 
-          <div style={extraStatCard}>
-            <p style={extraStatTitle}>Highest Expense</p>
-            <h3 style={{ ...extraStatValue, color: "#dc2626" }}>₹ {highestExpense}</h3>
+          <div style={getExtraStatCard(theme)}>
+            <p style={getExtraStatTitle(theme)}>Highest Expense</p>
+            <h3 style={{ ...getExtraStatValue(theme), color: "#dc2626" }}>
+              ₹ {highestExpense}
+            </h3>
           </div>
 
-          <div style={extraStatCard}>
-            <p style={extraStatTitle}>Highest Income</p>
-            <h3 style={{ ...extraStatValue, color: "#16a34a" }}>₹ {highestIncome}</h3>
+          <div style={getExtraStatCard(theme)}>
+            <p style={getExtraStatTitle(theme)}>Highest Income</p>
+            <h3 style={{ ...getExtraStatValue(theme), color: "#16a34a" }}>
+              ₹ {highestIncome}
+            </h3>
           </div>
         </div>
 
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "minmax(300px, 360px) minmax(0, 1fr)",
+            gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
             gap: "20px",
             marginBottom: "30px",
           }}
         >
           <div
             style={{
-              background: "white",
+              background: theme.cardBg,
               borderRadius: "18px",
               padding: "20px",
-              boxShadow: "0 6px 24px rgba(15,23,42,0.06)",
+              boxShadow: theme.shadow,
             }}
           >
-            <h3 style={{ marginTop: 0, color: "#0f172a" }}>Income vs Expense</h3>
+            <h3 style={{ marginTop: 0, color: theme.text }}>Income vs Expense</h3>
             <Pie data={pieData} />
           </div>
 
           <div
             style={{
-              background: "white",
+              background: theme.cardBg,
               borderRadius: "18px",
               padding: "20px",
-              boxShadow: "0 6px 24px rgba(15,23,42,0.06)",
+              boxShadow: theme.shadow,
               minWidth: 0,
             }}
           >
             <Bar data={barData} options={barOptions} />
           </div>
+
+          <div
+            style={{
+              background: theme.cardBg,
+              borderRadius: "18px",
+              padding: "20px",
+              boxShadow: theme.shadow,
+            }}
+          >
+            <h3 style={{ marginTop: 0, color: theme.text }}>Expenses by Category</h3>
+
+            {categoryPieData.labels.length === 0 ? (
+              <p style={{ color: theme.subText }}>No expense data available.</p>
+            ) : (
+              <Pie data={categoryPieData} />
+            )}
+          </div>
         </div>
 
         <div
           style={{
-            background: "white",
+            background: theme.cardBg,
             borderRadius: "18px",
             padding: "22px",
-            boxShadow: "0 6px 24px rgba(15,23,42,0.06)",
+            boxShadow: theme.shadow,
           }}
         >
           <div
@@ -493,8 +768,8 @@ export default function Dashboard() {
             }}
           >
             <div>
-              <h2 style={{ margin: 0, color: "#0f172a" }}>Recent Transactions</h2>
-              <p style={{ margin: "6px 0 0", color: "#64748b" }}>
+              <h2 style={{ margin: 0, color: theme.text }}>Recent Transactions</h2>
+              <p style={{ margin: "6px 0 0", color: theme.subText }}>
                 View, edit, and delete your transaction history.
               </p>
             </div>
@@ -505,19 +780,19 @@ export default function Dashboard() {
               style={{
                 textAlign: "center",
                 padding: "40px 20px",
-                border: "1px dashed #cbd5e1",
+                border: `1px dashed ${theme.border}`,
                 borderRadius: "14px",
-                background: "#f8fafc",
+                background: theme.cardBgSoft,
               }}
             >
-              <h3 style={{ marginBottom: "8px", color: "#334155" }}>
+              <h3 style={{ marginBottom: "8px", color: theme.text }}>
                 No transactions found
               </h3>
-              <p style={{ color: "#64748b", marginBottom: "16px" }}>
+              <p style={{ color: theme.subText, marginBottom: "16px" }}>
                 Add a new transaction or try changing your filters.
               </p>
               <button
-                onClick={() => navigate("/add")}
+                onClick={() => navigate("/add-transaction")}
                 style={{
                   padding: "10px 16px",
                   background: "#6366f1",
@@ -541,86 +816,91 @@ export default function Dashboard() {
                 }}
               >
                 <thead>
-                  <tr style={{ background: "#f8fafc" }}>
-                    <th style={tableHeadStyle}>Title</th>
-                    <th style={tableHeadStyle}>Amount</th>
-                    <th style={tableHeadStyle}>Type</th>
-                    <th style={tableHeadStyle}>Category</th>
-                    <th style={tableHeadStyle}>Date</th>
-                    <th style={tableHeadStyle}>Actions</th>
+                  <tr style={{ background: theme.tableHeadBg }}>
+                    <th style={getTableHeadStyle(theme)}>Title</th>
+                    <th style={getTableHeadStyle(theme)}>Amount</th>
+                    <th style={getTableHeadStyle(theme)}>Type</th>
+                    <th style={getTableHeadStyle(theme)}>Category</th>
+                    <th style={getTableHeadStyle(theme)}>Date</th>
+                    <th style={getTableHeadStyle(theme)}>Actions</th>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {filteredTransactions.map((t) => (
-                    <tr key={t.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
-                      <td style={tableCellStyle}>{t.title}</td>
+                  {filteredTransactions.map((t) => {
+                    const normalizedType = String(t.type || "").toLowerCase().trim();
+                    const isIncome = normalizedType === "income";
 
-                      <td
-                        style={{
-                          ...tableCellStyle,
-                          fontWeight: "700",
-                          color: t.type === "income" ? "#16a34a" : "#dc2626",
-                        }}
-                      >
-                        ₹ {t.amount}
-                      </td>
+                    return (
+                      <tr key={t.id} style={{ borderBottom: `1px solid ${theme.rowBorder}` }}>
+                        <td style={getTableCellStyle(theme)}>{t.title}</td>
 
-                      <td style={tableCellStyle}>
-                        <span
+                        <td
                           style={{
-                            padding: "6px 10px",
-                            borderRadius: "999px",
-                            fontSize: "13px",
-                            fontWeight: "600",
-                            background:
-                              t.type === "income" ? "#dcfce7" : "#fee2e2",
-                            color:
-                              t.type === "income" ? "#166534" : "#991b1b",
+                            ...getTableCellStyle(theme),
+                            fontWeight: "700",
+                            color: isIncome ? "#16a34a" : "#dc2626",
                           }}
                         >
-                          {t.type}
-                        </span>
-                      </td>
+                          ₹ {t.amount}
+                        </td>
 
-                      <td style={tableCellStyle}>{t.category || "No Category"}</td>
-                      <td style={tableCellStyle}>{t.date || "-"}</td>
-
-                      <td style={tableCellStyle}>
-                        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                          <button
-                            onClick={() => navigate(`/edit/${t.id}`)}
+                        <td style={getTableCellStyle(theme)}>
+                          <span
                             style={{
-                              padding: "8px 12px",
-                              background: "#f59e0b",
-                              color: "white",
-                              border: "none",
-                              borderRadius: "8px",
-                              cursor: "pointer",
+                              padding: "6px 10px",
+                              borderRadius: "999px",
+                              fontSize: "13px",
                               fontWeight: "600",
+                              background: isIncome ? "#dcfce7" : "#fee2e2",
+                              color: isIncome ? "#166534" : "#991b1b",
                             }}
                           >
-                            Edit
-                          </button>
+                            {t.type}
+                          </span>
+                        </td>
 
-                          <button
-                            onClick={() => handleDelete(t.id)}
-                            style={{
-                              padding: "8px 12px",
-                              background: "#dc2626",
-                              color: "white",
-                              border: "none",
-                              borderRadius: "8px",
-                              cursor: "pointer",
-                              fontWeight: "600",
-                            }}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        <td style={getTableCellStyle(theme)}>
+                          {t.category || "No Category"}
+                        </td>
+                        <td style={getTableCellStyle(theme)}>{t.date || "-"}</td>
+
+                        <td style={getTableCellStyle(theme)}>
+                          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                            <button
+                              onClick={() => navigate(`/edit/${t.id}`)}
+                              style={{
+                                padding: "8px 12px",
+                                background: "#f59e0b",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "8px",
+                                cursor: "pointer",
+                                fontWeight: "600",
+                              }}
+                            >
+                              Edit
+                            </button>
+
+                            <button
+                              onClick={() => handleDelete(t.id)}
+                              style={{
+                                padding: "8px 12px",
+                                background: "#dc2626",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "8px",
+                                cursor: "pointer",
+                                fontWeight: "600",
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -631,39 +911,39 @@ export default function Dashboard() {
   );
 }
 
-const tableHeadStyle = {
+const getTableHeadStyle = (theme) => ({
   textAlign: "left",
   padding: "14px",
-  color: "#334155",
+  color: theme.subText,
   fontSize: "14px",
   fontWeight: "700",
-};
+});
 
-const tableCellStyle = {
+const getTableCellStyle = (theme) => ({
   textAlign: "left",
   padding: "14px",
-  color: "#0f172a",
+  color: theme.text,
   fontSize: "15px",
-};
+});
 
-const extraStatCard = {
-  background: "white",
+const getExtraStatCard = (theme) => ({
+  background: theme.cardBg,
   borderRadius: "16px",
   padding: "20px",
-  boxShadow: "0 6px 24px rgba(15,23,42,0.06)",
-};
+  boxShadow: theme.shadow,
+});
 
-const extraStatTitle = {
+const getExtraStatTitle = (theme) => ({
   margin: 0,
-  color: "#64748b",
+  color: theme.subText,
   fontWeight: "600",
   fontSize: "15px",
-};
+});
 
-const extraStatValue = {
+const getExtraStatValue = (theme) => ({
   marginTop: "12px",
   marginBottom: 0,
-  color: "#0f172a",
+  color: theme.text,
   fontSize: "30px",
   fontWeight: "800",
-};
+});

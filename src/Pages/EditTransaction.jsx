@@ -15,6 +15,7 @@ export default function EditTransaction() {
   const [customCategory, setCustomCategory] = useState("");
   const [date, setDate] = useState("");
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     axios
@@ -40,6 +41,7 @@ export default function EditTransaction() {
       .catch((err) => {
         console.log("Error fetching transaction:", err);
         alert("Transaction not found!");
+        setLoading(false);
         navigate("/dashboard");
       });
   }, [id, navigate]);
@@ -47,17 +49,31 @@ export default function EditTransaction() {
   const handleSubmit = (e) => {
     e.preventDefault();
 
+    const finalTitle = title.trim();
     const finalCategory = category === "Other" ? customCategory.trim() : category;
+    const finalAmount = Number(amount);
 
-    if (!title.trim() || !amount || !date || !finalCategory) {
+    if (!finalTitle || !amount || !date || !finalCategory) {
       alert("Please fill all fields");
       return;
     }
 
+    if (category === "Other" && !customCategory.trim()) {
+      alert("Please enter custom category");
+      return;
+    }
+
+    if (finalAmount <= 0) {
+      alert("Amount must be greater than 0");
+      return;
+    }
+
+    setSubmitting(true);
+
     axios
       .put(`http://127.0.0.1:8000/api/transactions/${id}/`, {
-        title: title.trim(),
-        amount: Number(amount),
+        title: finalTitle,
+        amount: finalAmount,
         type,
         category: finalCategory,
         date,
@@ -69,6 +85,9 @@ export default function EditTransaction() {
       .catch((err) => {
         console.log("Error updating transaction:", err);
         alert("Failed to update transaction");
+      })
+      .finally(() => {
+        setSubmitting(false);
       });
   };
 
@@ -241,12 +260,11 @@ export default function EditTransaction() {
               }}
               style={inputStyle}
             >
-              <option value="Food">Food</option>
-              <option value="Travel">Travel</option>
-              <option value="Rent">Rent</option>
-              <option value="Shopping">Shopping</option>
-              <option value="Salary">Salary</option>
-              <option value="Other">Other</option>
+              {categoryOptions.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -285,30 +303,32 @@ export default function EditTransaction() {
           >
             <button
               type="submit"
+              disabled={submitting}
               style={{
                 padding: "12px 18px",
-                background: "#6366f1",
+                background: submitting ? "#94a3b8" : "#6366f1",
                 color: "white",
                 border: "none",
                 borderRadius: "10px",
-                cursor: "pointer",
+                cursor: submitting ? "not-allowed" : "pointer",
                 fontWeight: "700",
                 boxShadow: "0 8px 20px rgba(99,102,241,0.25)",
               }}
             >
-              Update Transaction
+              {submitting ? "Updating..." : "Update Transaction"}
             </button>
 
             <button
               type="button"
               onClick={() => navigate("/dashboard")}
+              disabled={submitting}
               style={{
                 padding: "12px 18px",
                 background: "#e2e8f0",
                 color: "#0f172a",
                 border: "none",
                 borderRadius: "10px",
-                cursor: "pointer",
+                cursor: submitting ? "not-allowed" : "pointer",
                 fontWeight: "700",
               }}
             >

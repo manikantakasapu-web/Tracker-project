@@ -16,21 +16,32 @@ class TransactionViewSet(viewsets.ModelViewSet):
 @api_view(["POST"])
 def signup(request):
     username = request.data.get("username", "").strip()
+    email = request.data.get("email", "").strip().lower()
     password = request.data.get("password", "").strip()
 
-    if not username or not password:
+    if not username or not email or not password:
         return Response(
-            {"error": "Username and password are required"},
+            {"error": "Username, email and password are required"},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
     if User.objects.filter(username=username).exists():
         return Response(
-            {"error": "User already exists"},
+            {"error": "Username already exists"},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    User.objects.create_user(username=username, password=password)
+    if User.objects.filter(email=email).exists():
+        return Response(
+            {"error": "Email already exists"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    User.objects.create_user(
+        username=username,
+        email=email,
+        password=password
+    )
 
     return Response(
         {"message": "User created successfully"},
